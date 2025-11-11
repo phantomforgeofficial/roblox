@@ -23,7 +23,20 @@ except Exception as e:
     print(f"Fout bij het lezen van 'cookies.txt': {e}")
     cookies1 = []
 
-bot = commands.Bot(command_prefix='.?')
+# --- BELANGRIJKE WIJZIGING HIER: DEFINIEER EN GEBRUIK INTENTS ---
+# Definieer de intents die je bot nodig heeft.
+# Voor de meeste bots die alleen commands verwerken, zijn de standaard intents voldoende.
+# Als je bot de inhoud van berichten moet lezen (buiten commands om),
+# of ledenlijsten moet ophalen, moet je mogelijk specifieke intents inschakelen.
+intents = discord.Intents.default()
+# Als je bot de inhoud van berichten moet lezen (bijv. voor commands die argumenten parsen),
+# moet je deze intent inschakelen. Voor de huidige commands is dit waarschijnlijk niet nodig,
+# maar het kan geen kwaad om het te hebben als je later meer functionaliteit toevoegt.
+# Als je deze regel inschakelt, MOET je ook de "MESSAGE CONTENT INTENT" inschakelen
+# in de Discord Developer Portal voor je bot.
+# intents.message_content = True
+
+bot = commands.Bot(command_prefix='.?', intents=intents)
 
 @bot.event
 async def on_ready():
@@ -34,10 +47,16 @@ def follow_user(cookie, prox, userid):
         try:
             proxy = {'http': prox, 'https': prox}
             session.cookies['.ROBLOSECURITY'] = cookie
-            response = session.get('https://www.roblox.com/home', proxies=proxy, timeout=10)
-            response.raise_for_status()
-            csrf_token = response.content.decode('utf8').split("Roblox.XsrfToken.setToken('")[1].split("');")[0]
-            session.headers['x-csrf-token'] = csrf_token
+            # Haal CSRF-token op
+            try:
+                response = session.get('https://www.roblox.com/home', proxies=proxy, timeout=10)
+                response.raise_for_status()
+                csrf_token = response.content.decode('utf8').split("Roblox.XsrfToken.setToken('")[1].split("');")[0]
+                session.headers['x-csrf-token'] = csrf_token
+            except (requests.exceptions.RequestException, IndexError) as e:
+                print(f"Fout bij CSRF-token ophalen voor cookie {cookie[:10]}...: {e}")
+                return
+            # Volg de gebruiker
             follow_response = session.post(f'https://friends.roblox.com/v1/users/{userid}/follow', proxies=proxy, timeout=10)
             follow_response.raise_for_status()
             print(f"Volgactie succesvol voor cookie: {cookie[:10]}... en gebruiker {userid}")
@@ -52,13 +71,19 @@ def add_user(cookie, userid):
     with requests.session() as session:
         try:
             session.cookies['.ROBLOSECURITY'] = cookie
+            # Haal CSRF-token op
+            try:
             response = session.get('https://www.roblox.com/home', timeout=10)
             response.raise_for_status()
             csrf_token = response.content.decode('utf8').split("Roblox.XsrfToken.setToken('")[1].split("');")[0]
             session.headers['x-csrf-token'] = csrf_token
-            add_response = session.post(f'https://friends.roblox.com/v1/users/{userid}/request-friendship', timeout=10)
-            add_response.raise_for_status()
-            print(f"Vriendschapsverzoek succesvol voor cookie: {cookie[:10]}... en gebruiker {userid}")
+        except (requests.exceptions.RequestException, IndexError) as e:
+            print(f"Fout bij CSRF-token ophalen voor cookie {cookie[:10]}...: {e}")
+            return
+        # Stuur vriendschapsverzoek
+        add_response = session.post(f'https://friends.roblox.com/v1/users/{userid}/request-friendship', timeout=10)
+        add_response.raise_for_status()
+        print(f"Vriendschapsverzoek succesvol voor cookie: {cookie[:10]}... en gebruiker {userid}")
         except requests.exceptions.RequestException as e:
             print(f"Fout bij add_user voor cookie {cookie[:10]}...: {e}")
         except IndexError:
@@ -73,7 +98,7 @@ async def follow(ctx, userId: int):
     try:
         response = requests.get('https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=150000&country=all&ssl=all&anonymity=all', stream=True, timeout=15)
         response.raise_for_status()
-        for chunk in response.iter_content(chunk_size=10000):
+            for chunk in response.iter_content(chunk_size=10000):
             if chunk:
                 prox += chunk.decode()
         proxies = prox.splitlines()
@@ -87,7 +112,7 @@ async def follow(ctx, userId: int):
         await ctx.send("Geen cookies geladen. Kan de follow-actie niet uitvoeren.")
         return
     for cookie in cookies1:
-        threading.Thread(target=follow_user, args=(cookie, random.choice(proxies), userId)).start()
+        threading.Thread(target=follow_user, args=(cookie, random.choice(proxies), userId,)).start()
         await asyncio.sleep(0.01)
 
 @bot.command()
@@ -97,7 +122,7 @@ async def friends(ctx, userId: int):
         await ctx.send("Geen cookies geladen. Kan de friend-actie niet uitvoeren.")
         return
     for cookie in cookies1:
-        threading.Thread(target=add_user, args=(cookie, userId)).start()
+        threading.Thread(target=add_user, args=(cookie, userId,)).start()
         await asyncio.sleep(0.01)
 
 @bot.command()
@@ -105,3 +130,5 @@ async def cookies(ctx):
     await ctx.send(f'Er zijn momenteel **{len(cookies1)}** cookies in onze server!')
 
 bot.run(TOKEN)
+
+  
