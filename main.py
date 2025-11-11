@@ -34,16 +34,10 @@ def follow_user(cookie, prox, userid):
         try:
             proxy = {'http': prox, 'https': prox}
             session.cookies['.ROBLOSECURITY'] = cookie
-            # Haal CSRF-token op
-            try:
-                response = session.get('https://www.roblox.com/home', proxies=proxy, timeout=10)
-                response.raise_for_status()
-                csrf_token = response.content.decode('utf8').split("Roblox.XsrfToken.setToken('")[1].split("');")[0]
-                session.headers['x-csrf-token'] = csrf_token
-            except (requests.exceptions.RequestException, IndexError) as e:
-                print(f"Fout bij CSRF-token ophalen voor cookie {cookie[:10]}...: {e}")
-                return
-            # Volg de gebruiker
+            response = session.get('https://www.roblox.com/home', proxies=proxy, timeout=10)
+            response.raise_for_status()
+            csrf_token = response.content.decode('utf8').split("Roblox.XsrfToken.setToken('")[1].split("');")[0]
+            session.headers['x-csrf-token'] = csrf_token
             follow_response = session.post(f'https://friends.roblox.com/v1/users/{userid}/follow', proxies=proxy, timeout=10)
             follow_response.raise_for_status()
             print(f"Volgactie succesvol voor cookie: {cookie[:10]}... en gebruiker {userid}")
@@ -58,28 +52,10 @@ def add_user(cookie, userid):
     with requests.session() as session:
         try:
             session.cookies['.ROBLOSECURITY'] = cookie
-            # Haal CSRF-token op
-            try:
-                response = session.get('https://www.roblox.com/home', timeout=10)
-                response.raise_for_status()
-                csrf_token = response.content.decode('utf8').split("Roblox.XsrfToken.setToken('")[1].split("');")[0]
-                session.headers['x-csrf-token'] = csrf_token
-            except (requests.exceptions.RequestException, IndexError) as e:
-                print(f"Fout bij CSRF-token ophalen voor cookie {cookie[:10]}...: {e}")
-                returndef add_user(cookie, userid):
-    with requests.session() as session:
-        try:
-            session.cookies['.ROBLOSECURITY'] = cookie
-            # Haal CSRF-token op
-            try:
-                response = session.get('https://www.roblox.com/home', timeout=10)
-                response.raise_for_status()
-                csrf_token = response.content.decode('utf8').split("Roblox.XsrfToken.setToken('")[1].split("');")[0]
-                session.headers['x-csrf-token'] = csrf_token
-            except (requests.exceptions.RequestException, IndexError) as e:
-                print(f"Fout bij CSRF-token ophalen voor cookie {cookie[:10]}...: {e}")
-                return
-            # Stuur vriendschapsverzoek
+            response = session.get('https://www.roblox.com/home', timeout=10)
+            response.raise_for_status()
+            csrf_token = response.content.decode('utf8').split("Roblox.XsrfToken.setToken('")[1].split("');")[0]
+            session.headers['x-csrf-token'] = csrf_token
             add_response = session.post(f'https://friends.roblox.com/v1/users/{userid}/request-friendship', timeout=10)
             add_response.raise_for_status()
             print(f"Vriendschapsverzoek succesvol voor cookie: {cookie[:10]}... en gebruiker {userid}")
@@ -111,7 +87,7 @@ async def follow(ctx, userId: int):
         await ctx.send("Geen cookies geladen. Kan de follow-actie niet uitvoeren.")
         return
     for cookie in cookies1:
-        threading.Thread(target=follow_user, args=(cookie, random.choice(proxies), userId,)).start()
+        threading.Thread(target=follow_user, args=(cookie, random.choice(proxies), userId)).start()
         await asyncio.sleep(0.01)
 
 @bot.command()
@@ -121,7 +97,7 @@ async def friends(ctx, userId: int):
         await ctx.send("Geen cookies geladen. Kan de friend-actie niet uitvoeren.")
         return
     for cookie in cookies1:
-        threading.Thread(target=add_user, args=(cookie, userId,)).start()
+        threading.Thread(target=add_user, args=(cookie, userId)).start()
         await asyncio.sleep(0.01)
 
 @bot.command()
